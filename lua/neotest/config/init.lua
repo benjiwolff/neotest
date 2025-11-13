@@ -77,7 +77,7 @@ local js_watch_query = [[
 ---@alias neotest.Consumer fun(client: neotest.Client): table
 
 ---@class neotest.Config.floating
----@field border string Border style
+---@field border? string Border style
 ---@field max_height number Max height of window as proportion of NeoVim window
 ---@field max_width number Max width of window as proportion of NeoVim window
 ---@field options table Window local options to set on floating windows (e.g. winblend)
@@ -119,6 +119,9 @@ local js_watch_query = [[
 ---@field clear_target string|string[] Clear the target position for the selected adapter
 ---@field next_failed string|string[] Jump to the next failed position
 ---@field prev_failed string|string[] Jump to the previous failed position
+---@field next_sibling string|string[] Jump to the next sibling of selected
+---@field prev_sibling string|string[] Jump to the previous sibling of selected
+---@field parent string|string[] Jump to the parent of selected
 ---@field watch string|string[] Toggle watching for changes
 
 ---@class neotest.Config.output
@@ -217,7 +220,7 @@ local default_config = {
     watching = "NeotestWatching",
   },
   floating = {
-    border = "rounded",
+    border = nil,
     max_height = 0.6,
     max_width = 0.6,
     options = {},
@@ -239,6 +242,9 @@ local default_config = {
     mappings = {
       expand = { "<CR>", "<2-LeftMouse>" },
       expand_all = "e",
+      parent = "P",
+      prev_sibling = "<",
+      next_sibling = ">",
       output = "o",
       short = "O",
       attach = "a",

@@ -22,7 +22,7 @@ local function get_match_type(captured_nodes)
   end
 end
 
-local function build_position(file_path, source, captured_nodes)
+local function build_position(file_path, source, captured_nodes, metadata)
   local match_type = get_match_type(captured_nodes)
   if match_type then
     ---@type string
@@ -56,12 +56,14 @@ local function collect(file_path, query, source, root, opts)
       range = { root:range() },
     },
   }
-  for _, match in query:iter_matches(root, source, nil, nil, { all = false }) do
+  for _, match, metadata in query:iter_matches(root, source, nil, nil, { all = false }) do
     local captured_nodes = {}
+    local node_metadata = {}
     for i, capture in ipairs(query.captures) do
       captured_nodes[capture] = match[i]
+      node_metadata[capture] = metadata[i]
     end
-    local res = opts.build_position(file_path, source, captured_nodes)
+    local res = opts.build_position(file_path, source, captured_nodes, node_metadata)
     if res then
       if res[1] then
         for _, pos in ipairs(res) do
@@ -80,19 +82,15 @@ end
 --- This does only the required parsing
 --- Replaces `LanguageTree:parse`
 --- https://github.com/neovim/neovim/blob/master/runtime/lua/vim/treesitter/languagetree.lua
+---
+--- This is now just equivalent to `LanguageTree:parse(false)[1]`.
 function neotest.lib.treesitter.fast_parse(lang_tree)
-  if lang_tree._valid then
-    return lang_tree._trees
-  end
-
-  local parser = lang_tree._parser
-  local old_trees = lang_tree._trees
-  return parser:parse(old_trees[1], lang_tree._source)
+  return lang_tree:parse()[1]
 end
 
 ---@class neotest.lib.treesitter.ParseOptions : neotest.lib.positions.ParseOptions
 ---@field fast? boolean Use faster parsing (Should be unchanged unless injections are needed)
----@field build_position? fun(file_path: string, source: string, captured_nodes: table<string, userdata>): neotest.Position|neotest.Position[]|nil Builds one or more positions from the captured nodes from a query match.
+---@field build_position? fun(file_path: string, source: string, captured_nodes: table<string, userdata>, metadata: table<string, vim.treesitter.query.TSMetadata>): neotest.Position|neotest.Position[]|nil Builds one or more positions from the captured nodes from a query match.
 
 --- Build a parsed Query object from a string
 ---@param lang string
@@ -114,8 +112,8 @@ end
 function neotest.lib.treesitter.get_parse_root(file_path, content, opts)
   local fast = opts.fast ~= false
   local ft = lib.files.detect_filetype(file_path)
-  local lang = vim.treesitter.language.get_lang(ft) or ft
   nio.scheduler()
+  local lang = vim.treesitter.language.get_lang(ft) or ft
   local lang_tree = vim.treesitter.get_string_parser(
     content,
     lang,
@@ -123,12 +121,7 @@ function neotest.lib.treesitter.get_parse_root(file_path, content, opts)
     --- it from trying to read the query from runtime files
     fast and { injections = { [lang] = "" } } or {}
   )
-  local root
-  if fast then
-    root = neotest.lib.treesitter.fast_parse(lang_tree):root()
-  else
-    root = lang_tree:parse()[1]:root()
-  end
+  local root = lang_tree:parse()[1]:root()
   return root, lang
 end
 
